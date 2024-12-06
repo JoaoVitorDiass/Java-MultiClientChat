@@ -28,7 +28,7 @@ public class Client1 {
                     message = userBuffer.readLine();
                     dataSent.writeBytes(message+"\n");
 
-                    if( message.equalsIgnoreCase("--quit")) {
+                    if( message.equalsIgnoreCase("sair")) {
                         out.set(true);
                     }
                 }
@@ -47,10 +47,7 @@ public class Client1 {
                 try {
                     serverMessage = dataReceived.readLine();
 
-                    if(serverMessage.contains("@#@ENDCLIENT@#@")) {
-                        System.out.println("you left the chat ...");
-                    }
-                    else {
+                    if(!serverMessage.contains("@#@ENDCLIENT@#@")) {
                         if(serverMessage != null) {
                             System.out.println(serverMessage);
                         }
@@ -69,19 +66,18 @@ public class Client1 {
             System.out.println("Waiting to be accepted ...");
             serverMessage = dataReceived.readLine();
 
-            System.out.println(serverMessage);
+            if(!serverMessage.equalsIgnoreCase("ok")) {
+                System.out.println(serverMessage);
+            }
 
-            if( serverMessage.equalsIgnoreCase("ok")) {
+            if( serverMessage.equalsIgnoreCase("OK")) {
                 Thread threadReceive = new Thread(messagesReceivedHandler);
                 Thread threadSent = new Thread(sendMessageHandler);
-
-                System.out.println("you are aproved! xD");
 
                 threadReceive.start();
                 threadSent.start();
             }
             else {
-                System.out.println("you are recused ... :c");
                 clientSocket.close();
             }
         } catch (IOException e) {

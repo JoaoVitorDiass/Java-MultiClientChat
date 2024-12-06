@@ -4,6 +4,9 @@ import java.util.LinkedList;
 
 public class Server {
 
+    public static final String DEFAULT = "\033[0m";
+    public static final String YELLOW = "\033[33m";
+
     private static boolean IsServerCommand(String command) {
         return command.startsWith("--");
     }
@@ -19,8 +22,7 @@ public class Server {
 
             while(true) {
                 try {
-                    System.out.println("Server Running ...");
-                    System.out.println("Waiting for a new connection");
+                    System.out.println("Waiting for a new connection ...");
 
                     Socket connectionSocket = serverSocket.accept();
 
@@ -57,76 +59,84 @@ public class Server {
 
                     for (int i = 0; i < connectedUsersCount - userRemovedCount; i++) {
                         try {
-                            User user = connectedUsers.get(i);
+                            User userReceived = connectedUsers.get(i);
 
-                            if( user.getDataReceived().ready() ) {
-                                sentMessage = user.getDataReceived().readLine();
+                            if( userReceived.getDataReceived().ready() ) {
+                                sentMessage = userReceived.getDataReceived().readLine();
 
                                 if( IsServerCommand( sentMessage ) ) {
 
-                                    if( !user.isHasVotted() && Singleton._count > 0 ) {
+                                    if( !userReceived.isHasVotted() && Singleton._count > 0 ) {
+
                                         switch (sentMessage.toLowerCase()) {
 
                                             case "--yes":
-                                                user.setIsAccepted(true);
-                                                user.setHasVotted(true);
+                                                userReceived.setIsAccepted(true);
+                                                userReceived.setHasVotted(true);
                                                 Singleton._count--;
 
-                                                System.out.println("User '"+user.getName()+"' has been accepted!");
+                                                System.out.println("User '"+userReceived.getName()+"' has been accepted!");
                                                 break;
 
                                             case "--no":
-                                                user.setIsAccepted(false);
-                                                user.setHasVotted(false);
+                                                userReceived.setIsAccepted(false);
+                                                userReceived.setHasVotted(true);
                                                 Singleton._count--;
 
-                                                System.out.println("User '"+user.getName()+"' was not accepted!");
+                                                System.out.println("User '"+userReceived.getName()+"' was not accepted!");
                                                 break;
                                             default:
-                                                System.out.println("Command not found ...");
+                                                userReceived.getDataSent().writeBytes(YELLOW + "Command not found ...\n" + DEFAULT);
                                                 break;
 
                                         }
                                     }
                                     else {
-                                        if( Singleton._count == 0 ) {
-                                            if(sentMessage.equalsIgnoreCase("sair")) {
-                                                User userLeaving = user;
-                                                System.out.println(user.getName()+" left the chat");
-
-                                                for (int j = 0; j < connectedUsersCount; j++) {
-                                                    User userSentCommand = connectedUsers.get(j);
-                                                    if(userSentCommand == user) {
-                                                        userSentCommand.getDataSent().writeBytes(user.getName()+" left the chat"+"\n");
-                                                    }
-                                                    else {
-                                                        userLeaving.getDataSent().writeBytes("@#@ENDCLIENT@#@"+"\n");
-                                                    }
-                                                }
-
-                                                connectedUsers.remove(i);
-                                                userLeaving.getConnectionSocket().close();
-                                                sendMessageToAll = false;
-                                                userRemovedCount = 1;
-                                            }
-                                        }
+                                        userReceived.getDataSent().writeBytes(YELLOW + "Command not found ...\n" + DEFAULT);
                                     }
+                                    sendMessageToAll = false;
                                 }
-                                else {
-                                    if( sendMessageToAll ) {
+
+                                if( Singleton._count == 0 ) {
+                                    if(sentMessage.equalsIgnoreCase("sair")) {
+
+                                        User userLeaving = userReceived;
+
+                                        System.out.println(userLeaving.getName()+" left the chat\n");
+
                                         for (int j = 0; j < connectedUsersCount; j++) {
-                                            User userToSendMessage = connectedUsers.get(j);
+                                            User userSentCommand = connectedUsers.get(j);
 
-                                            if(userToSendMessage != user) {
-                                                try {
-                                                    userToSendMessage.getDataSent().writeBytes(user.getName()+": "+sentMessage+"\n");
-                                                } catch (IOException e) {
-                                                    throw new RuntimeException(e);
-                                                }
+                                            if(userSentCommand != userLeaving) {
+                                                userSentCommand.getDataSent().writeBytes(YELLOW + userLeaving.getName()+" left the chat\n" + DEFAULT);
+                                            }
+                                            else  {
+                                                userLeaving.getDataSent().writeBytes(YELLOW + "You left the chat\n" + DEFAULT);
+                                                userLeaving.getDataSent().writeBytes("@#@ENDCLIENT@#@\n");
+                                            }
+                                        }
+
+                                        connectedUsers.remove(i);
+                                        userLeaving.getConnectionSocket().close();
+                                        sendMessageToAll = false;
+                                        userRemovedCount = 1;
+                                    }
+                                }
+
+                                if( sendMessageToAll ) {
+                                    for (int j = 0; j < connectedUsersCount; j++) {
+                                        User userToSendMessage = connectedUsers.get(j);
+
+                                        if(userToSendMessage != userReceived) {
+                                            try {
+                                                userToSendMessage.getDataSent().writeBytes(userReceived.getName()+": "+sentMessage+"\n");
+                                            } catch (IOException e) {
+                                                throw new RuntimeException(e);
                                             }
                                         }
                                     }
                                 }
+
                             }
                         } catch (IOException e) {
                             throw new RuntimeException(e);
@@ -149,22 +159,23 @@ public class Server {
                                         System.out.println("first user logged in");
                                         Singleton._first = pendingUsers.getFirst();
                                         pendingUsers.removeFirst();
-                                        User newUser = new User(Singleton._name, Singleton._first, true);
+                                        User newUser = new User(Singleton._first, true);
+                                        newUser.setName(Singleton._name);
 
                                         synchronized ( connectedUsers ) {
                                             connectedUsers.add(newUser);
                                         }
 
-                                        newUser.getDataSent().writeBytes("ok"+"\n");
-                                        newUser.getDataSent().writeBytes("Welcome "+newUser.getName()+" :)"+"\n");
+                                        newUser.getDataSent().writeBytes("OK\n");
+                                        newUser.getDataSent().writeBytes(YELLOW + "Welcome "+newUser.getName()+" :)\n" + DEFAULT);
                                     }
                                     else {
                                         System.out.println("Voting started");
                                         Singleton._count = connectedUsers.size();
 
-                                        for(User user : connectedUsers) {
-                                            user.getDataSent().writeBytes(Singleton._name+" wants to join the chat.\n" +
-                                                    "Type --yes to accept or --no to decline"+"\n");
+                                        for(User user1 : connectedUsers) {
+                                            user1.getDataSent().writeBytes(YELLOW + Singleton._name+" wants to join the chat.\n" +
+                                                    "Type --yes to accept or --no to decline\n" + DEFAULT);
                                         }
 
                                         while ( Singleton._count > 0 ) {
@@ -176,36 +187,36 @@ public class Server {
 
                                         boolean userHasBeenAceppted = true;
 
-                                        for(User user : connectedUsers ) {
-                                            if(!user.isAccepted()) {
+                                        for(User user2 : connectedUsers ) {
+                                            if(!user2.isAccepted()) {
                                                 userHasBeenAceppted = false;
                                             }
 
-                                            user.setHasVotted(true);
+                                            user2.setHasVotted(false);
                                         }
 
                                         if(userHasBeenAceppted) {
                                             Singleton._first = pendingUsers.removeFirst();
 
-                                            User newUser = new User(Singleton._name, Singleton._first, true);
+                                            User newUser = new User( Singleton._first, true);
+                                            newUser.setName(Singleton._name);
 
-                                            newUser.getDataSent().writeBytes("ok"+"\n");
+                                            newUser.getDataSent().writeBytes("OK\n");
                                             connectedUsers.add(newUser);
 
-                                            for(User user : connectedUsers ) {
-                                                if(user == newUser) {
-                                                    user.getDataSent().writeBytes("Welcome "+newUser.getName()+" :)"+"\n");
+                                            for(User user3 : connectedUsers ) {
+                                                if(user3 == newUser) {
+                                                    user3.getDataSent().writeBytes(YELLOW + "you are aproved! Welcome "+newUser.getName()+" :)\n" + DEFAULT);
                                                 }
                                                 else {
-                                                    user.getDataSent().writeBytes(newUser.getName() + " joined the chat"+"\n");
+                                                    user3.getDataSent().writeBytes(YELLOW + newUser.getName() + " joined the chat\n" + DEFAULT);
                                                 }
                                             }
-
                                         }
                                         else {
 
-                                            User user = new User(null, pendingUsers.getFirst(), true);
-                                            user.getDataSent().writeBytes("Sorry, you were not allowed to join the conversation ... :s "+"\n");
+                                            User user = new User( pendingUsers.getFirst(), true );
+                                            user.getDataSent().writeBytes(YELLOW + "Sorry, you were not allowed to join the conversation ... :s\n" + DEFAULT);
 
                                             user = null;
 

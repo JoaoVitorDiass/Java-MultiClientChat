@@ -11,8 +11,7 @@ public class User {
     private boolean _isAccepted;
     private boolean _hasVotted;
 
-    public User(String name, Socket connectionSocket, boolean isConnected) throws IOException {
-        this._name = name;
+    public User(Socket connectionSocket, boolean isConnected) throws IOException {
         this._connectionSocket = connectionSocket;
         this._isConnected = isConnected;
         this._dataReceived = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));;
